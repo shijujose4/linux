@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2024-2025 Intel Corporation. All rights reserved. */
 #include <linux/device.h>
+#include <cxl/mailbox.h>
 #include "cxl.h"
 #include "core.h"
 
@@ -69,3 +70,30 @@ err:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_features_alloc, "CXL");
+
+struct cxl_feat_entry *
+cxl_get_supported_feature_entry(struct cxl_features *features,
+				const uuid_t *feat_uuid)
+{
+	struct cxl_feat_entry *feat_entry;
+	struct cxl_features_state *cfs;
+	int count;
+
+	cfs = dev_get_drvdata(&features->dev);
+	if (!cfs)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (!cfs->num_features)
+		return ERR_PTR(-ENOENT);
+
+	/* Check CXL dev supports the feature */
+	feat_entry = cfs->entries;
+	for (count = 0; count < cfs->num_features;
+	     count++, feat_entry++) {
+		if (uuid_equal(&feat_entry->uuid, feat_uuid))
+			return feat_entry;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_get_supported_feature_entry, "CXL");

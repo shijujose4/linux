@@ -234,7 +234,7 @@ static struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
 	return NULL;
 }
 
-static struct cxl_mem_command *cxl_find_feature_command(u16 opcode)
+struct cxl_mem_command *cxl_find_feature_command(u16 opcode)
 {
 	struct cxl_mem_command *c;
 
@@ -244,6 +244,7 @@ static struct cxl_mem_command *cxl_find_feature_command(u16 opcode)
 
 	return NULL;
 }
+EXPORT_SYMBOL_NS_GPL(cxl_find_feature_command, "CXL");
 
 static const char *cxl_mem_opcode_to_name(u16 opcode)
 {
