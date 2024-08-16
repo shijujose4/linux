@@ -630,6 +630,10 @@ static int edac_dev_feat_init(struct device *parent,
 	case RAS_FEAT_PPR:
 		dev_data->ppr_ops = ras_feat->ppr_ops;
 		dev_data->private = ras_feat->ctx;
+		ret = edac_ppr_get_desc(parent, attr_groups,
+					ras_feat->instance);
+		if (ret)
+			return ret;
 		return 1;
 	default:
 		return -EINVAL;
