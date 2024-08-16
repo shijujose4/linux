@@ -623,6 +623,9 @@ static int edac_dev_feat_init(struct device *parent,
 		num = ras_feat->ecs_info.num_media_frus;
 		dev_data->ecs_ops = ras_feat->ecs_ops;
 		dev_data->private = ras_feat->ctx;
+		ret = edac_ecs_get_desc(parent, attr_groups, num);
+		if (ret)
+			return ret;
 		return num;
 	case RAS_FEAT_PPR:
 		dev_data->ppr_ops = ras_feat->ppr_ops;
