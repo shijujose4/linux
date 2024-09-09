@@ -570,3 +570,205 @@ void edac_device_handle_ue_count(struct edac_device_ctl_info *edac_dev,
 		      block ? block->name : "N/A", count, msg);
 }
 EXPORT_SYMBOL_GPL(edac_device_handle_ue_count);
+
+/* EDAC device feature */
+static void edac_dev_release(struct device *dev)
+{
+	struct edac_dev_feat_ctx *ctx = container_of(dev, struct edac_dev_feat_ctx, dev);
+
+	kfree(ctx->ppr);
+	kfree(ctx->scrub);
+	kfree(ctx->dev.groups);
+	kfree(ctx);
+}
+
+const struct device_type edac_dev_type = {
+	.name = "edac_dev",
+	.release = edac_dev_release,
+};
+
+static void edac_dev_unreg(void *data)
+{
+	device_unregister(data);
+}
+
+/**
+ * edac_dev_feature_init - Init a RAS feature
+ * @parent: client device.
+ * @dev_data: pointer to the edac_dev_data structure, which contains
+ * client device specific info.
+ * @feat: pointer to struct edac_dev_feature.
+ * @attr_groups: pointer to attribute group's container.
+ *
+ * Returns number of scrub features attribute groups on success,
+ * error otherwise.
+ */
+static int edac_dev_feat_init(struct device *parent,
+			      struct edac_dev_data *dev_data,
+			      const struct edac_dev_feature *ras_feat,
+			      const struct attribute_group **attr_groups)
+{
+	int num;
+
+	switch (ras_feat->ft_type) {
+	case RAS_FEAT_SCRUB:
+		dev_data->scrub_ops = ras_feat->scrub_ops;
+		dev_data->private = ras_feat->ctx;
+		return 1;
+	case RAS_FEAT_ECS:
+		num = ras_feat->ecs_info.num_media_frus;
+		dev_data->ecs_ops = ras_feat->ecs_ops;
+		dev_data->private = ras_feat->ctx;
+		return num;
+	case RAS_FEAT_PPR:
+		dev_data->ppr_ops = ras_feat->ppr_ops;
+		dev_data->private = ras_feat->ctx;
+		return 1;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * edac_dev_register - register device for RAS features with EDAC
+ * @parent: client device.
+ * @name: client device's name.
+ * @private: parent driver's data to store in the context if any.
+ * @num_features: number of RAS features to register.
+ * @ras_features: list of RAS features to register.
+ *
+ * Returns 0 on success, error otherwise.
+ * The new edac_dev_feat_ctx would be freed automatically.
+ */
+int edac_dev_register(struct device *parent, char *name,
+		      void *private, int num_features,
+		      const struct edac_dev_feature *ras_features)
+{
+	const struct attribute_group **ras_attr_groups;
+	struct edac_dev_data *dev_data;
+	struct edac_dev_feat_ctx *ctx;
+	int scrub_cnt = 0, scrub_inst = 0;
+	int ppr_cnt = 0, ppr_inst = 0;
+	int attr_gcnt = 0;
+	int ret, feat;
+
+	if (!parent || !name || !num_features || !ras_features)
+		return -EINVAL;
+
+	/* Double parse to make space for attributes */
+	for (feat = 0; feat < num_features; feat++) {
+		switch (ras_features[feat].ft_type) {
+		case RAS_FEAT_SCRUB:
+			attr_gcnt++;
+			scrub_cnt++;
+			break;
+		case RAS_FEAT_PPR:
+			attr_gcnt++;
+			ppr_cnt++;
+			break;
+		case RAS_FEAT_ECS:
+			attr_gcnt += ras_features[feat].ecs_info.num_media_frus;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->dev.parent = parent;
+	ctx->private = private;
+
+	ras_attr_groups = kcalloc(attr_gcnt + 1, sizeof(*ras_attr_groups), GFP_KERNEL);
+	if (!ras_attr_groups) {
+		ret = -ENOMEM;
+		goto ctx_free;
+	}
+
+	if (scrub_cnt) {
+		ctx->scrub = kcalloc(scrub_cnt, sizeof(*(ctx->scrub)), GFP_KERNEL);
+		if (!ctx->scrub) {
+			ret = -ENOMEM;
+			goto groups_free;
+		}
+	}
+
+	if (ppr_cnt) {
+		ctx->ppr = kcalloc(ppr_cnt, sizeof(*(ctx->ppr)), GFP_KERNEL);
+		if (!ctx->ppr) {
+			ret = -ENOMEM;
+			goto groups_free;
+		}
+	}
+
+	attr_gcnt = 0;
+	for (feat = 0; feat < num_features; feat++, ras_features++) {
+		switch (ras_features->ft_type) {
+		case RAS_FEAT_SCRUB:
+			if (!ras_features->scrub_ops)
+				continue;
+			if (scrub_inst != ras_features->instance)
+				goto data_mem_free;
+			dev_data = &ctx->scrub[scrub_inst];
+			dev_data->instance = scrub_inst;
+			scrub_inst++;
+			break;
+		case RAS_FEAT_ECS:
+			if (!ras_features->ecs_ops)
+				continue;
+			dev_data = &ctx->ecs;
+			break;
+		case RAS_FEAT_PPR:
+			if (!ras_features->ppr_ops)
+				continue;
+			if (ppr_inst != ras_features->instance)
+				goto data_mem_free;
+			dev_data = &ctx->ppr[ppr_inst];
+			dev_data->instance = ppr_inst;
+			ppr_inst++;
+			break;
+		default:
+			ret = -EINVAL;
+			goto data_mem_free;
+		}
+		ret = edac_dev_feat_init(parent, dev_data, ras_features,
+					 &ras_attr_groups[attr_gcnt]);
+		if (ret < 0)
+			goto data_mem_free;
+
+		attr_gcnt += ret;
+	}
+
+	ras_attr_groups[attr_gcnt] = NULL;
+	ctx->dev.bus = edac_get_sysfs_subsys();
+	ctx->dev.type = &edac_dev_type;
+	ctx->dev.groups = ras_attr_groups;
+	dev_set_drvdata(&ctx->dev, ctx);
+
+	ret = dev_set_name(&ctx->dev, name);
+	if (ret)
+		goto data_mem_free;
+
+	ret = device_register(&ctx->dev);
+	if (ret) {
+		put_device(&ctx->dev);
+		goto data_mem_free;
+		return ret;
+	}
+
+	return devm_add_action_or_reset(parent, edac_dev_unreg, &ctx->dev);
+
+data_mem_free:
+	if (ppr_cnt)
+		kfree(ctx->ppr);
+	if (scrub_cnt)
+		kfree(ctx->scrub);
+groups_free:
+	kfree(ras_attr_groups);
+ctx_free:
+	kfree(ctx);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(edac_dev_register);
