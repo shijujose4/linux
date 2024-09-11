@@ -47,14 +47,10 @@ static int cxl_get_supported_features(struct cxl_features_state *cfs)
 	struct cxl_mbox_get_sup_feats_in mbox_in;
 	struct cxl_feat_entry *entry;
 	struct cxl_mbox_cmd mbox_cmd;
-	struct cxl_mem_command *cmd;
 	int count;
 
 	/* Get supported features is optional, need to check */
-	cmd = cxl_find_feature_command(CXL_MBOX_OP_GET_SUPPORTED_FEATURES);
-	if (!cmd)
-		return -EOPNOTSUPP;
-	if (!test_bit(cmd->info.id, cxl_mbox->feature_cmds))
+	if (!cxl_feature_enabled(cfs, CXL_MBOX_OP_GET_SUPPORTED_FEATURES))
 		return -EOPNOTSUPP;
 
 	count = cxl_get_supported_features_count(cxl_mbox);
