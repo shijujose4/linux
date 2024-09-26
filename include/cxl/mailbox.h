@@ -14,6 +14,8 @@ struct cxl_mbox_cmd;
  * @mbox_mutex: mutex protects device mailbox and firmware
  * @mbox_wait: rcuwait for mailbox
  * @mbox_send: @dev specific transport for transmitting mailbox commands
+ * @num_features: number of supported features
+ * @entries: list of supported feature entries.
  */
 struct cxl_mailbox {
 	struct device *host;
@@ -21,6 +23,8 @@ struct cxl_mailbox {
 	struct mutex mbox_mutex; /* lock to protect mailbox context */
 	struct rcuwait mbox_wait;
 	int (*mbox_send)(struct cxl_mailbox *cxl_mbox, struct cxl_mbox_cmd *cmd);
+	int num_features;
+	struct cxl_feat_entry *entries;
 };
 
 int cxl_mailbox_init(struct cxl_mailbox *cxl_mbox, struct device *host);
