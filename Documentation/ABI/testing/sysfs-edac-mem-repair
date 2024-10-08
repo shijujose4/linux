@@ -1,0 +1,152 @@
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		The sysfs EDAC bus devices /<dev-name>/mem_repairX subdirectory
+		belongs to the memory media repair features control, such as
+		PPR (Post Package Repair), memory sparing etc, where<dev-name>
+		directory corresponds to a device registered with the EDAC
+		device driver for the memory repair features.
+		/mem_repairX belongs to either sPPR (Soft PPR) or hPPR (Hard PPR)
+		feature of PPR feature, hard or soft memory sparing etc. The memory
+		sparing is a repair function that replaces a portion of memory
+		(spared memory) with a portion of functional memory. The memory
+		sparing has cacheline/row/bank/rank sparing granularities.
+		The sysfs memory repair attr nodes would be only present if a
+		memory repair feature is supported.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair_type
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) Type of the repair instance. For eg. sPPR, hPPR, cacheline/
+		row/bank/rank memory sparing etc.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/persist_mode_avail
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) Persist repair modes supported in the device.
+		For e.g. Hard PPR(hPPR)/hard memory sparing for a permanent memory
+		repair, Soft PPR(sPPR)/soft memory sparing for a temporary repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/persist_mode
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) Current persist repair mode.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/dpa_support
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) True if supports DPA for repair(PPR, memory sparing, ...)
+		maintenance operation.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair_safe_when_in_use
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) True if memory media is accessible and data is retained
+		during the memory repair operation.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/hpa
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set HPA (Host Physical Address) for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/dpa
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set DPA (Device Physical Address) for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/nibble_mask
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set nibble mask for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank_group
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set memory bank group for repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set memory bank for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/rank
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set memory rank for repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/row
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set row for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/column
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set column for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/channel
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set channel for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/sub_channel
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Set sub channel for memory repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/query
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Query whether the repair operation is supported for the
+		memory attributes set. Return failure if resources are
+		not available to perform repair.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair
+Date:		Oct 2024
+KernelVersion:	6.12
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Start the memory repair operation for the memory attributes
+		set. Return failure if resources are not available to
+		perform repair.
+		In some states of system configuration (e.g. before address
+		decoders have been configured), memory devices (e.g. CXL)
+		may not have an active mapping in the main host address
+		physical address map. As such, the memory to repair must be
+		identified by a device specific physical addressing scheme
+		using a DPA. The DPA to use will be presented in related
+		error records.

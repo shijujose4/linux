@@ -576,6 +576,7 @@ static void edac_dev_release(struct device *dev)
 {
 	struct edac_dev_feat_ctx *ctx = container_of(dev, struct edac_dev_feat_ctx, dev);
 
+	kfree(ctx->mem_repair);
 	kfree(ctx->scrub);
 	kfree(ctx->dev.groups);
 	kfree(ctx);
@@ -614,6 +615,7 @@ int edac_dev_register(struct device *parent, char *name,
 	struct edac_dev_data *dev_data;
 	struct edac_dev_feat_ctx *ctx;
 	int scrub_cnt = 0, scrub_inst = 0;
+	int mem_repair_cnt = 0, mem_repair_inst = 0;
 	int attr_gcnt = 0;
 	int ret, feat;
 
@@ -626,6 +628,10 @@ int edac_dev_register(struct device *parent, char *name,
 		case RAS_FEAT_SCRUB:
 			attr_gcnt++;
 			scrub_cnt++;
+			break;
+		case RAS_FEAT_MEM_REPAIR:
+			attr_gcnt++;
+			mem_repair_cnt++;
 			break;
 		case RAS_FEAT_ECS:
 			attr_gcnt += ras_features[feat].ecs_info.num_media_frus;
@@ -651,6 +657,14 @@ int edac_dev_register(struct device *parent, char *name,
 	if (scrub_cnt) {
 		ctx->scrub = kcalloc(scrub_cnt, sizeof(*ctx->scrub), GFP_KERNEL);
 		if (!ctx->scrub) {
+			ret = -ENOMEM;
+			goto groups_free;
+		}
+	}
+
+	if (mem_repair_cnt) {
+		ctx->mem_repair = kcalloc(mem_repair_cnt, sizeof(*ctx->mem_repair), GFP_KERNEL);
+		if (!ctx->mem_repair) {
 			ret = -ENOMEM;
 			goto groups_free;
 		}
@@ -687,6 +701,22 @@ int edac_dev_register(struct device *parent, char *name,
 				goto data_mem_free;
 			attr_gcnt += ras_features->ecs_info.num_media_frus;
 			break;
+		case RAS_FEAT_MEM_REPAIR:
+			if (!ras_features->mem_repair_ops)
+				continue;
+			if (mem_repair_inst != ras_features->instance)
+				goto data_mem_free;
+			dev_data = &ctx->mem_repair[mem_repair_inst];
+			dev_data->instance = mem_repair_inst;
+			dev_data->mem_repair_ops = ras_features->mem_repair_ops;
+			dev_data->private = ras_features->ctx;
+			ret = edac_mem_repair_get_desc(parent, &ras_attr_groups[attr_gcnt],
+						       ras_features->instance);
+			if (ret)
+				goto data_mem_free;
+			mem_repair_inst++;
+			attr_gcnt++;
+			break;
 		default:
 			ret = -EINVAL;
 			goto data_mem_free;
@@ -713,6 +743,7 @@ int edac_dev_register(struct device *parent, char *name,
 	return devm_add_action_or_reset(parent, edac_dev_unreg, &ctx->dev);
 
 data_mem_free:
+	kfree(ctx->mem_repair);
 	kfree(ctx->scrub);
 groups_free:
 	kfree(ras_attr_groups);

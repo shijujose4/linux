@@ -670,6 +670,7 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 enum edac_dev_feat {
 	RAS_FEAT_SCRUB,
 	RAS_FEAT_ECS,
+	RAS_FEAT_MEM_REPAIR,
 	RAS_FEAT_MAX
 };
 
@@ -745,11 +746,75 @@ int edac_ecs_get_desc(struct device *ecs_dev,
 		      const struct attribute_group **attr_groups,
 		      u16 num_media_frus);
 
+enum edac_mem_repair_type {
+	EDAC_TYPE_SPPR,
+	EDAC_TYPE_HPPR,
+	EDAC_TYPE_CACHELINE_MEM_SPARING,
+	EDAC_TYPE_ROW_MEM_SPARING,
+	EDAC_TYPE_BANK_MEM_SPARING,
+	EDAC_TYPE_RANK_MEM_SPARING,
+};
+
+enum edac_mem_repair_persist_mode {
+	EDAC_MEM_REPAIR_SOFT, /* soft memory repair */
+	EDAC_MEM_REPAIR_HARD, /* hard memory repair */
+};
+
+/**
+ * struct edac_mem_repair_ops - memory repair device operations
+ * (all elements optional)
+ * @get_repair_type: get the memory repair type, listed in enum edac_mem_repair_type.
+ * @get_persist_mode_avail: get the persist modes supported in the device.
+ * @get_persist_mode: get the persist mode of the memory repair instance.
+ * @set_persist_mode: set the persist mode for the memory repair instance.
+ * @get_dpa_support: get dpa support flag.
+ * @get_repair_safe_when_in_use: get whether memory media is accessible and
+ *			       data is retained during repair operation.
+ * @set_hpa: set HPA for memory repair.
+ * @set_dpa: set DPA for memory repair.
+ * @set_nibble_mask: set nibble mask for memory repair.
+ * @set_bank_group: set bank group for memory repair.
+ * @set_bank: set bank for memory repair.
+ * @set_rank: set rank for memory repair.
+ * @set_row: set row for memory repair.
+ * @set_column: set column for memory repair.
+ * @set_channel: set channel for memory repair.
+ * @set_sub_channel: set sub channel for memory repair.
+ * @do_query: Query memory repair operation for the HPA/DPA/other attrs set
+ *	      is supported or not.
+ * @do_repair: start memory repair operation for the HPA/DPA/other attrs set.
+ */
+struct edac_mem_repair_ops {
+	int (*get_repair_type)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_persist_mode_avail)(struct device *dev, void *drv_data, char *buf);
+	int (*get_persist_mode)(struct device *dev, void *drv_data, u32 *mode);
+	int (*set_persist_mode)(struct device *dev, void *drv_data, u32 mode);
+	int (*get_dpa_support)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_repair_safe_when_in_use)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_hpa)(struct device *dev, void *drv_data, u64 hpa);
+	int (*set_dpa)(struct device *dev, void *drv_data, u64 dpa);
+	int (*set_nibble_mask)(struct device *dev, void *drv_data, u64 val);
+	int (*set_bank_group)(struct device *dev, void *drv_data, u32 val);
+	int (*set_bank)(struct device *dev, void *drv_data, u32 val);
+	int (*set_rank)(struct device *dev, void *drv_data, u32 val);
+	int (*set_row)(struct device *dev, void *drv_data, u64 val);
+	int (*set_column)(struct device *dev, void *drv_data, u32 val);
+	int (*set_channel)(struct device *dev, void *drv_data, u32 val);
+	int (*set_sub_channel)(struct device *dev, void *drv_data, u32 val);
+	int (*do_query)(struct device *dev, void *drv_data);
+	int (*do_repair)(struct device *dev, void *drv_data);
+};
+
+int edac_mem_repair_get_desc(struct device *dev,
+			     const struct attribute_group **attr_groups,
+			     u8 instance);
+
 /* EDAC device feature information structure */
 struct edac_dev_data {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	u8 instance;
 	void *private;
@@ -762,6 +827,7 @@ struct edac_dev_feat_ctx {
 	void *private;
 	struct edac_dev_data *scrub;
 	struct edac_dev_data ecs;
+	struct edac_dev_data *mem_repair;
 };
 
 struct edac_dev_feature {
@@ -770,6 +836,7 @@ struct edac_dev_feature {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	void *ctx;
 	struct edac_ecs_ex_info ecs_info;
