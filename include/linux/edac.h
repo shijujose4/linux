@@ -669,6 +669,7 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 /* RAS feature type */
 enum edac_dev_feat {
 	RAS_FEAT_SCRUB,
+	RAS_FEAT_ECS,
 	RAS_FEAT_MAX
 };
 
@@ -706,9 +707,50 @@ int edac_scrub_get_desc(struct device *scrub_dev,
 			const struct attribute_group **attr_groups,
 			u8 instance);
 
+/**
+ * struct ecs_ops - ECS device operations (all elements optional)
+ * @get_log_entry_type: read the log entry type value.
+ * @set_log_entry_type: set the log entry type value.
+ * @get_log_entry_type_per_dram: read the log entry type per dram value.
+ * @get_log_entry_type_memory_media: read the log entry type per memory media value.
+ * @get_mode: read the mode value.
+ * @set_mode: set the mode value.
+ * @get_mode_counts_rows: read the mode counts rows value.
+ * @get_mode_counts_codewords: read the mode counts codewords value.
+ * @reset: reset the ECS counter.
+ * @get_threshold: read the threshold value.
+ * @set_threshold: set the threshold value.
+ */
+struct edac_ecs_ops {
+	int (*get_log_entry_type)(struct device *dev, void *drv_data, int fru_id, u32 *val);
+	int (*set_log_entry_type)(struct device *dev, void *drv_data, int fru_id, u32 val);
+	int (*get_log_entry_type_per_dram)(struct device *dev, void *drv_data,
+					   int fru_id, u32 *val);
+	int (*get_log_entry_type_per_memory_media)(struct device *dev, void *drv_data,
+						   int fru_id, u32 *val);
+	int (*get_mode)(struct device *dev, void *drv_data, int fru_id, u32 *val);
+	int (*set_mode)(struct device *dev, void *drv_data, int fru_id, u32 val);
+	int (*get_mode_counts_rows)(struct device *dev, void *drv_data, int fru_id, u32 *val);
+	int (*get_mode_counts_codewords)(struct device *dev, void *drv_data, int fru_id, u32 *val);
+	int (*reset)(struct device *dev, void *drv_data, int fru_id, u32 val);
+	int (*get_threshold)(struct device *dev, void *drv_data, int fru_id, u32 *threshold);
+	int (*set_threshold)(struct device *dev, void *drv_data, int fru_id, u32 threshold);
+};
+
+struct edac_ecs_ex_info {
+	u16 num_media_frus;
+};
+
+int edac_ecs_get_desc(struct device *ecs_dev,
+		      const struct attribute_group **attr_groups,
+		      u16 num_media_frus);
+
 /* EDAC device feature information structure */
 struct edac_dev_data {
-	const struct edac_scrub_ops *scrub_ops;
+	union {
+		const struct edac_scrub_ops *scrub_ops;
+		const struct edac_ecs_ops *ecs_ops;
+	};
 	u8 instance;
 	void *private;
 };
@@ -719,13 +761,18 @@ struct edac_dev_feat_ctx {
 	struct device dev;
 	void *private;
 	struct edac_dev_data *scrub;
+	struct edac_dev_data ecs;
 };
 
 struct edac_dev_feature {
 	enum edac_dev_feat ft_type;
 	u8 instance;
-	const struct edac_scrub_ops *scrub_ops;
+	union {
+		const struct edac_scrub_ops *scrub_ops;
+		const struct edac_ecs_ops *ecs_ops;
+	};
 	void *ctx;
+	struct edac_ecs_ex_info ecs_info;
 };
 
 int edac_dev_register(struct device *parent, char *dev_name,
