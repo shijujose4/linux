@@ -2843,6 +2843,21 @@ struct cxl_region *cxl_dpa_to_region(const struct cxl_memdev *cxlmd, u64 dpa)
 	return ctx.cxlr;
 }
 
+struct cxl_region *cxl_dpa_to_region_locked(const struct cxl_memdev *cxlmd, u64 dpa)
+{
+	struct cxl_region *cxlr;
+	int rc;
+
+	rc = down_read_interruptible(&cxl_dpa_rwsem);
+	if (rc)
+		return NULL;
+
+	cxlr = cxl_dpa_to_region(cxlmd, dpa);
+	up_read(&cxl_dpa_rwsem);
+
+	return cxlr;
+}
+
 static bool cxl_is_hpa_in_chunk(u64 hpa, struct cxl_region *cxlr, int pos)
 {
 	struct cxl_region_params *p = &cxlr->params;
