@@ -92,3 +92,8 @@ the sysfs EDAC bus. For example, /sys/bus/edac/devices/<dev-name>/<feature>X/
 3. RAS dynamic feature controller - Userspace sample modules in rasdaemon for
 dynamic scrub/repair control to issue scrubbing/repair when excess number
 of corrected memory errors are reported in a short span of time.
+
+RAS features
+------------
+1. Memory Scrub
+Memory scrub features are documented in `Documentation/edac/scrub.rst`.
