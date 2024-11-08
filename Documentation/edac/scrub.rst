@@ -244,3 +244,74 @@ Sysfs files are documented in
 `Documentation/ABI/testing/sysfs-edac-scrub`.
 
 `Documentation/ABI/testing/sysfs-edac-ecs`.
+
+Examples
+--------
+
+The usage takes the form shown in this example:
+
+1. CXL memory device patrol scrubber
+
+1.1 Device based scrubbing
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/min_cycle_duration
+
+3600
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/max_cycle_duration
+
+918000
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/current_cycle_duration
+
+43200
+
+root@localhost:~# echo 54000 > /sys/bus/edac/devices/cxl_mem0/scrub0/current_cycle_duration
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/current_cycle_duration
+
+54000
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/scrub0/enable_background
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/enable_background
+
+1
+
+root@localhost:~# echo 0 > /sys/bus/edac/devices/cxl_mem0/scrub0/enable_background
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/scrub0/enable_background
+
+0
+
+1.2. Region based scrubbing
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/min_cycle_duration
+
+3600
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/max_cycle_duration
+
+918000
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/current_cycle_duration
+
+43200
+
+root@localhost:~# echo 54000 > /sys/bus/edac/devices/cxl_region0/scrub0/current_cycle_duration
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/current_cycle_duration
+
+54000
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_region0/scrub0/enable_background
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/enable_background
+
+1
+
+root@localhost:~# echo 0 > /sys/bus/edac/devices/cxl_region0/scrub0/enable_background
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_region0/scrub0/enable_background
+
+0
