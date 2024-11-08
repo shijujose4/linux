@@ -242,3 +242,5 @@ sysfs
 Sysfs files are documented in
 
 `Documentation/ABI/testing/sysfs-edac-scrub`.
+
+`Documentation/ABI/testing/sysfs-edac-ecs`.
