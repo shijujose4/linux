@@ -151,3 +151,88 @@ root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/nibble_mask
 root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/dry_run
 
 root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair
+
+1.2. CXL memory sparing
+
+# read capabilities
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair_function
+
+2
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/dpa_support
+
+1
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/persist_mode
+
+0
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair_safe_when_in_use
+
+1
+
+#set and readback attributes
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank_group
+
+root@localhost:~# echo 3 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank
+
+root@localhost:~# echo 2 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/channel
+
+root@localhost:~# echo  7 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/rank
+
+root@localhost:~# echo 0x240a > /sys/bus/edac/devices/cxl_mem0/mem_repair1/row
+
+root@localhost:~# echo 5 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/sub_channel
+
+root@localhost:~# echo 11 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/column
+
+root@localhost:~# echo 0x85c2 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/nibble_mask
+
+root@localhost:~# echo 0x700000 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/dpa
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank_group
+
+1
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank
+
+3
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/channel
+
+2
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/rank
+
+7
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/row
+
+0x240a
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/sub_channel
+
+5
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/column
+
+11
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/nibble_mask
+
+0x85c2
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/dpa
+
+0x700000
+
+# issue repair operations
+
+# dry-run and repair return error if unsupported/resources are not available
+# for the repair operation.
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/dry_run
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair
