@@ -99,3 +99,55 @@ sysfs
 Sysfs files are documented in
 
 `Documentation/ABI/testing/sysfs-edac-memory-repair`.
+
+Example
+-------
+
+The usage takes the form shown in this example:
+
+1. CXL memory device Soft Post Package Repair (Soft PPR)
+
+# read capabilities
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/dpa_support
+
+1
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/nibble_mask
+
+0x0
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/persist_mode
+
+0
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair_function
+
+0
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair_safe_when_in_use
+
+1
+
+# set and readback attributes
+
+root@localhost:~# echo 0x8a2d > /sys/bus/edac/devices/cxl_mem0/mem_repair0/nibble_mask
+
+root@localhost:~# echo 0x300000 >  /sys/bus/edac/devices/cxl_mem0/mem_repair0/dpa
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/dpa
+
+0x300000
+
+root@localhost:~# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/nibble_mask
+
+0x8a2d
+
+# issue repair operations
+
+# dry-run and reapir return error if unsupported/resources are not available
+# for the repair operation.
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/dry_run
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair
