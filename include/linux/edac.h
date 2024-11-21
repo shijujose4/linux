@@ -668,6 +668,7 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 enum edac_dev_feat {
 	RAS_FEAT_SCRUB,
 	RAS_FEAT_ECS,
+	RAS_FEAT_MEM_REPAIR,
 	RAS_FEAT_MAX
 };
 
@@ -729,11 +730,147 @@ int edac_ecs_get_desc(struct device *ecs_dev,
 		      const struct attribute_group **attr_groups,
 		      u16 num_media_frus);
 
+enum edac_mem_repair_function {
+	EDAC_SOFT_PPR,
+	EDAC_HARD_PPR,
+	EDAC_CACHELINE_MEM_SPARING,
+	EDAC_ROW_MEM_SPARING,
+	EDAC_BANK_MEM_SPARING,
+	EDAC_RANK_MEM_SPARING,
+};
+
+enum edac_mem_repair_persist_mode {
+	EDAC_MEM_REPAIR_SOFT, /* soft memory repair */
+	EDAC_MEM_REPAIR_HARD, /* hard memory repair */
+};
+
+enum edac_mem_repair_cmd {
+	EDAC_DO_MEM_REPAIR = 1,
+};
+
+/**
+ * struct edac_mem_repair_ops - memory repair operations
+ * (all elements are optional except do_repair, set_hpa/set_dpa)
+ * @get_repair_function: get the memory repair function, listed in
+ *			 enum edac_mem_repair_function.
+ * @get_persist_mode: get the current persist mode. Persist repair modes supported
+ *		      in the device is based on the memory repair function which is
+ *		      temporary or permanent and is lost with a power cycle.
+ *		      EDAC_MEM_REPAIR_SOFT - Soft repair function (temporary repair).
+ *		      EDAC_MEM_REPAIR_HARD - Hard memory repair function (permanent repair).
+ * All other values are reserved.
+ * @set_persist_mode: set the persist mode of the memory repair instance.
+ * @get_dpa_support: get dpa support flag. In some states of system configuration
+ *		     (e.g. before address decoders have been configured), memory devices
+ *		     (e.g. CXL) may not have an active mapping in the main host address
+ *		     physical address map. As such, the memory to repair must be identified
+ *		     by a device specific physical addressing scheme using a device physical
+ *		     address(DPA). The DPA and other control attributes to use for the
+ *		     dry_run and repair operations will be presented in related error records.
+ * @get_repair_safe_when_in_use: get whether memory media is accessible and
+ *				 data is retained during repair operation.
+ * @get_hpa: get current host physical address (HPA).
+ * @set_hpa: set host physical address (HPA) of memory to repair.
+ * @get_min_hpa: get the minimum supported host physical address (HPA).
+ * @get_max_hpa: get the maximum supported host physical address (HPA).
+ * @get_dpa: get current device physical address (DPA).
+ * @set_dpa: set device physical address (DPA) of memory to repair.
+ * @get_min_dpa: get the minimum supported device physical address (DPA).
+ * @get_max_dpa: get the maximum supported device physical address (DPA).
+ * @get_nibble_mask: get current nibble mask.
+ * @set_nibble_mask: set nibble mask of memory to repair.
+ * @get_min_nibble_mask: get the minimum supported nibble mask.
+ * @get_max_nibble_mask: get the maximum supported nibble mask.
+ * @get_bank_group: get current bank group.
+ * @set_bank_group: set bank group of memory to repair.
+ * @get_min_bank_group: get the minimum supported bank group.
+ * @get_max_bank_group: get the maximum supported bank group.
+ * @get_bank: get current bank.
+ * @set_bank: set bank of memory to repair.
+ * @get_min_bank: get the minimum supported bank.
+ * @get_max_bank: get the maximum supported bank.
+ * @get_rank: get current rank.
+ * @set_rank: set rank of memory to repair.
+ * @get_min_rank: get the minimum supported rank.
+ * @get_max_rank: get the maximum supported rank.
+ * @get_row: get current row.
+ * @set_row: set row of memory to repair.
+ * @get_min_row: get the minimum supported row.
+ * @get_max_row: get the maximum supported row.
+ * @get_column: get current column.
+ * @set_column: set column of memory to repair.
+ * @get_min_column: get the minimum supported column.
+ * @get_max_column: get the maximum supported column.
+ * @get_channel: get current channel.
+ * @set_channel: set channel of memory to repair.
+ * @get_min_channel: get the minimum supported channel.
+ * @get_max_channel: get the maximum supported channel.
+ * @get_sub_channel: get current sub channel.
+ * @set_sub_channel: set sub channel of memory to repair.
+ * @get_min_sub_channel: get the minimum supported sub channel.
+ * @get_max_sub_channel: get the maximum supported sub channel.
+ * @do_repair: Issue memory repair operation for the HPA/DPA and
+ *	       other control attributes set for the memory to repair.
+ */
+struct edac_mem_repair_ops {
+	int (*get_repair_function)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_persist_mode)(struct device *dev, void *drv_data, u32 *mode);
+	int (*set_persist_mode)(struct device *dev, void *drv_data, u32 mode);
+	int (*get_dpa_support)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_repair_safe_when_in_use)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*set_hpa)(struct device *dev, void *drv_data, u64 hpa);
+	int (*get_min_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*get_max_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*get_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*set_dpa)(struct device *dev, void *drv_data, u64 dpa);
+	int (*get_min_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*get_max_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*get_nibble_mask)(struct device *dev, void *drv_data, u64 *val);
+	int (*set_nibble_mask)(struct device *dev, void *drv_data, u64 val);
+	int (*get_min_nibble_mask)(struct device *dev, void *drv_data, u64 *val);
+	int (*get_max_nibble_mask)(struct device *dev, void *drv_data, u64 *val);
+	int (*get_bank_group)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_bank_group)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_bank_group)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_bank_group)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_bank)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_bank)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_bank)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_bank)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_rank)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_rank)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_rank)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_rank)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_row)(struct device *dev, void *drv_data, u64 *val);
+	int (*set_row)(struct device *dev, void *drv_data, u64 val);
+	int (*get_min_row)(struct device *dev, void *drv_data, u64 *val);
+	int (*get_max_row)(struct device *dev, void *drv_data, u64 *val);
+	int (*get_column)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_column)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_column)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_column)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_channel)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_sub_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_sub_channel)(struct device *dev, void *drv_data, u32 val);
+	int (*get_min_sub_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*get_max_sub_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*do_repair)(struct device *dev, void *drv_data, u32 val);
+};
+
+int edac_mem_repair_get_desc(struct device *dev,
+			     const struct attribute_group **attr_groups,
+			     u8 instance);
+
 /* EDAC device feature information structure */
 struct edac_dev_data {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	u8 instance;
 	void *private;
@@ -744,6 +881,7 @@ struct edac_dev_feat_ctx {
 	void *private;
 	struct edac_dev_data *scrub;
 	struct edac_dev_data ecs;
+	struct edac_dev_data *mem_repair;
 };
 
 struct edac_dev_feature {
@@ -752,6 +890,7 @@ struct edac_dev_feature {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	void *ctx;
 	struct edac_ecs_ex_info ecs_info;
