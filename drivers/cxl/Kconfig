@@ -146,4 +146,12 @@ config CXL_REGION_INVALIDATION_TEST
 	  If unsure, or if this kernel is meant for production environments,
 	  say N.
 
+config CXL_FEATURES
+	tristate "CXL: Features support"
+	default CXL_BUS
+	help
+	  Enable CXL features support that are tied to a CXL mailbox.
+
+	  If unsure say 'y'.
+
 endif

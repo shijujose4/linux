@@ -386,6 +386,21 @@ static int cxl_pci_mbox_send(struct cxl_mailbox *cxl_mbox,
 	return rc;
 }
 
+static int cxl_pci_setup_features(struct cxl_memdev_state *mds)
+{
+	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
+	struct cxl_features *features;
+
+	features = cxl_features_alloc(cxl_mbox, cxlds->dev);
+	if (IS_ERR(features))
+		return PTR_ERR(features);
+
+	cxl_mbox->features = features;
+
+	return 0;
+}
+
 static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds, bool irq_avail)
 {
 	struct cxl_dev_state *cxlds = &mds->cxlds;
@@ -977,6 +992,10 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 
 	rc = cxl_enumerate_cmds(mds);
+	if (rc)
+		return rc;
+
+	rc = cxl_pci_setup_features(mds);
 	if (rc)
 		return rc;
 
