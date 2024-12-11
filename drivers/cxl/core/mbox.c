@@ -38,6 +38,21 @@ static bool cxl_raw_allow_all;
 	.flags = _flags,                                                       \
 	}
 
+#define cxl_for_each_feature_cmd(cmd)                                          \
+	for ((cmd) = &cxl_feature_commands[0];                                 \
+	     ((cmd) - cxl_feature_commands) < ARRAY_SIZE(cxl_feature_commands); (cmd)++)
+
+#define CXL_FEATURE_CMD(_id, sin, sout, _flags)                                \
+	[CXL_FEATURE_ID_##_id] = {                                             \
+	.info =	{                                                              \
+			.id = CXL_FEATURE_ID_##_id,                            \
+			.size_in = sin,                                        \
+			.size_out = sout,                                      \
+		},                                                             \
+	.opcode = CXL_MBOX_OP_##_id,                                           \
+	.flags = _flags,                                                       \
+	}
+
 #define CXL_VARIABLE_PAYLOAD	~0U
 /*
  * This table defines the supported mailbox commands for the driver. This table
@@ -67,6 +82,13 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(SET_SHUTDOWN_STATE, 0x1, 0, 0),
 	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
 	CXL_CMD(GET_TIMESTAMP, 0, 0x8, 0),
+};
+
+#define CXL_FEATURE_COMMAND_ID_MAX 3
+static struct cxl_mem_command cxl_feature_commands[CXL_FEATURE_COMMAND_ID_MAX] = {
+	CXL_FEATURE_CMD(GET_SUPPORTED_FEATURES, 0x8, CXL_VARIABLE_PAYLOAD, 0),
+	CXL_FEATURE_CMD(GET_FEATURE, 0xf, CXL_VARIABLE_PAYLOAD, 0),
+	CXL_FEATURE_CMD(SET_FEATURE, CXL_VARIABLE_PAYLOAD, 0, 0),
 };
 
 /*
@@ -206,6 +228,17 @@ static struct cxl_mem_command *cxl_mem_find_command(u16 opcode)
 	struct cxl_mem_command *c;
 
 	cxl_for_each_cmd(c)
+		if (c->opcode == opcode)
+			return c;
+
+	return NULL;
+}
+
+static struct cxl_mem_command *cxl_find_feature_command(u16 opcode)
+{
+	struct cxl_mem_command *c;
+
+	cxl_for_each_feature_cmd(c)
 		if (c->opcode == opcode)
 			return c;
 
@@ -734,6 +767,14 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 		if (cmd) {
 			set_bit(cmd->info.id, cxl_mbox->enabled_cmds);
 			enabled++;
+		} else {
+			struct cxl_mem_command *fcmd =
+				cxl_find_feature_command(opcode);
+
+			if (fcmd) {
+				set_bit(fcmd->info.id, cxl_mbox->feature_cmds);
+				enabled++;
+			}
 		}
 
 		if (cxl_is_poison_command(opcode)) {

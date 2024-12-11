@@ -5,6 +5,13 @@
 
 struct cxl_mailbox;
 
+enum feature_cmds {
+	CXL_FEATURE_ID_GET_SUPPORTED_FEATURES = 0,
+	CXL_FEATURE_ID_GET_FEATURE,
+	CXL_FEATURE_ID_SET_FEATURE,
+	CXL_FEATURE_ID_MAX,
+};
+
 struct cxl_features {
 	int id;
 	struct device dev;
