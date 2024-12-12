@@ -173,11 +173,38 @@ static void cxl_features_remove(struct device *dev)
 	kfree(cfs);
 }
 
+static ssize_t features_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct cxl_features_state *cfs = dev_get_drvdata(dev);
+
+	if (!cfs)
+		return -ENOENT;
+
+	return sysfs_emit(buf, "%d\n", cfs->num_features);
+}
+
+static DEVICE_ATTR_RO(features);
+
+static struct attribute *cxl_features_attrs[] = {
+	&dev_attr_features.attr,
+	NULL
+};
+
+static struct attribute_group cxl_features_group = {
+	.attrs = cxl_features_attrs,
+};
+
+__ATTRIBUTE_GROUPS(cxl_features);
+
 static struct cxl_driver cxl_features_driver = {
 	.name = "cxl_features",
 	.probe = cxl_features_probe,
 	.remove = cxl_features_remove,
 	.id = CXL_DEVICE_FEATURES,
+	.drv = {
+		.dev_groups = cxl_features_groups,
+	},
 };
 
 module_cxl_driver(cxl_features_driver);
