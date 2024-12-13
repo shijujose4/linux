@@ -6,6 +6,17 @@
 #include "core.h"
 #include "cxlmem.h"
 
+static const uuid_t cxl_exclusive_feats[] = {
+	CXL_FEAT_PATROL_SCRUB_UUID,
+	CXL_FEAT_ECS_UUID,
+	CXL_FEAT_SPPR_UUID,
+	CXL_FEAT_HPPR_UUID,
+	CXL_FEAT_CACHELINE_SPARING_UUID,
+	CXL_FEAT_ROW_SPARING_UUID,
+	CXL_FEAT_BANK_SPARING_UUID,
+	CXL_FEAT_RANK_SPARING_UUID,
+};
+
 #define CXL_FEATURE_MAX_DEVS 65536
 static DEFINE_IDA(cxl_features_ida);
 
@@ -263,3 +274,14 @@ int cxl_set_feature(struct cxl_features *features,
 	} while (true);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_set_feature, "CXL");
+
+bool is_cxl_feature_exclusive(struct cxl_feat_entry *entry)
+{
+	for (int i = 0; i < ARRAY_SIZE(cxl_exclusive_feats); i++) {
+		if (uuid_equal(&entry->uuid, &cxl_exclusive_feats[i]))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_feature_exclusive, "CXL");

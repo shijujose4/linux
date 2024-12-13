@@ -47,6 +47,7 @@ static int cxl_get_supported_features(struct cxl_features_state *cfs)
 	struct cxl_mbox_get_sup_feats_in mbox_in;
 	struct cxl_feat_entry *entry;
 	struct cxl_mbox_cmd mbox_cmd;
+	int user_feats = 0;
 	int count;
 
 	/* Get supported features is optional, need to check */
@@ -127,6 +128,8 @@ static int cxl_get_supported_features(struct cxl_features_state *cfs)
 			return -ENXIO;
 
 		memcpy(entry, mbox_out->ents, retrieved);
+		if (!is_cxl_feature_exclusive(entry))
+			user_feats++;
 		entry++;
 		/*
 		 * If the number of output entries is less than expected, add the
@@ -138,6 +141,7 @@ static int cxl_get_supported_features(struct cxl_features_state *cfs)
 
 	cfs->num_features = count;
 	cfs->entries = no_free_ptr(entries);
+	cfs->num_user_features = user_feats;
 	return devm_add_action_or_reset(&cfs->features->dev,
 					cxl_free_feature_entries, cfs->entries);
 }
@@ -177,7 +181,7 @@ static ssize_t features_show(struct device *dev, struct device_attribute *attr,
 	if (!cfs)
 		return -ENOENT;
 
-	return sysfs_emit(buf, "%d\n", cfs->num_features);
+	return sysfs_emit(buf, "%d\n", cfs->num_user_features);
 }
 
 static DEVICE_ATTR_RO(features);
