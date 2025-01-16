@@ -2851,6 +2851,16 @@ struct cxl_region *cxl_dpa_to_region(const struct cxl_memdev *cxlmd, u64 dpa)
 	return ctx.cxlr;
 }
 
+bool cxl_are_decoders_committed(const struct cxl_memdev *cxlmd)
+{
+	struct cxl_port *port = cxlmd->endpoint;
+
+	if (port && is_cxl_endpoint(port) && cxl_num_decoders_committed(port))
+		return true;
+
+	return false;
+}
+
 static bool cxl_is_hpa_in_chunk(u64 hpa, struct cxl_region *cxlr, int pos)
 {
 	struct cxl_region_params *p = &cxlr->params;

@@ -32,8 +32,17 @@ int cxl_get_poison_by_endpoint(struct cxl_port *port);
 struct cxl_region *cxl_dpa_to_region(const struct cxl_memdev *cxlmd, u64 dpa);
 u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 		   u64 dpa);
+bool cxl_are_decoders_committed(const struct cxl_memdev *cxlmd);
 
 #else
+static inline bool cxl_are_decoders_committed(const struct cxl_memdev *cxlmd)
+{
+	/*
+	 * If no driver, in absence of a way to check, assume decoders are committed.
+	 */
+	return true;
+}
+
 static inline u64 cxl_dpa_to_hpa(struct cxl_region *cxlr,
 				 const struct cxl_memdev *cxlmd, u64 dpa)
 {
