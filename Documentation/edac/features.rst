@@ -98,3 +98,7 @@ RAS features
 1. Memory Scrub
 
 Memory scrub features are documented in `Documentation/edac/scrub.rst`.
+
+2. Memory Repair
+
+Memory repair features are documented in `Documentation/edac/memory_repair.rst`.
