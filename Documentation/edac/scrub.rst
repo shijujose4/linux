@@ -253,3 +253,84 @@ sysfs
 
 Sysfs files are documented in
 `Documentation/ABI/testing/sysfs-edac-scrub`
+
+Examples
+--------
+
+The usage takes the form shown in these examples:
+
+1. ACPI RAS2
+
+1.1 On demand scrubbing for a specific memory region.
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/min_cycle_duration
+
+3600
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/max_cycle_duration
+
+86400
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+36000
+
+# Readback 'addr', non-zero - demand scrub is in progress, zero - scrub is finished.
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/addr
+
+0
+
+root@localhost:~# echo 54000 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+root@localhost:~# echo 0x150000 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/size
+
+# Write 'addr' starts demand scrubbing, please make sure other attributes are set prior to that.
+
+root@localhost:~# echo 0x120000 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/addr
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+54000
+
+# Readback 'addr', non-zero - demand scrub is in progress, zero - scrub is finished.
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/addr
+
+0x120000
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/addr
+
+0
+
+1.2 Background scrubbing the entire memory
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/min_cycle_duration
+
+3600
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/max_cycle_duration
+
+86400
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+36000
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/enable_background
+
+0
+
+root@localhost:~# echo 10800 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+root@localhost:~# echo 1 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/enable_background
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/enable_background
+
+1
+
+root@localhost:~# cat /sys/bus/edac/devices/acpi_ras_mem0/scrub0/current_cycle_duration
+
+10800
+
+root@localhost:~# echo 0 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/enable_background
