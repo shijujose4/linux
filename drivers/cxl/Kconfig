@@ -164,6 +164,7 @@ config CXL_RAS_FEATURES
 	depends on CXL_FEATURES
 	depends on EDAC=y || (CXL_BUS=m && EDAC=m)
 	depends on EDAC_SCRUB
+	depends on EDAC_ECS
 	help
 	  The CXL memory RAS feature control is optional and allows host to
 	  control the RAS features configurations of CXL Type 3 devices.
