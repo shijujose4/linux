@@ -19,8 +19,9 @@
 #include <cxl.h>
 #include <cxlmem.h>
 #include "core.h"
+#include "trace.h"
 
-#define CXL_DEV_NUM_RAS_FEATURES	3
+#define CXL_DEV_NUM_RAS_FEATURES	7
 #define CXL_DEV_HOUR_IN_SECS	3600
 
 #define CXL_DEV_NAME_LEN	128
@@ -1104,6 +1105,546 @@ static int cxl_memdev_soft_ppr_init(struct cxl_memdev *cxlmd,
 	return 0;
 }
 
+/* CXL memory sparing control definitions */
+enum cxl_mem_sparing_granularity {
+	CXL_MEM_SPARING_CACHELINE,
+	CXL_MEM_SPARING_ROW,
+	CXL_MEM_SPARING_BANK,
+	CXL_MEM_SPARING_RANK,
+	CXL_MEM_SPARING_MAX
+};
+
+struct cxl_mem_sparing_context {
+	struct cxl_memdev *cxlmd;
+	uuid_t repair_uuid;
+	u16 get_feat_size;
+	u16 set_feat_size;
+	u16 effects;
+	u8 instance;
+	u8 get_version;
+	u8 set_version;
+	u8 channel;
+	u8 rank;
+	u8 bank_group;
+	u32 nibble_mask;
+	u64 dpa;
+	u32 row;
+	u16 column;
+	u8 bank;
+	u8 sub_channel;
+	enum edac_mem_repair_type repair_type;
+	bool persist_mode;
+	enum cxl_mem_sparing_granularity granularity;
+};
+
+struct cxl_memdev_sparing_params {
+	u8 op_class;
+	u8 op_subclass;
+	bool cap_safe_when_in_use;
+	bool cap_hard_sparing;
+	bool cap_soft_sparing;
+};
+
+#define CXL_MEMDEV_SPARING_RD_CAP_SAFE_IN_USE_MASK	BIT(0)
+#define CXL_MEMDEV_SPARING_RD_CAP_HARD_SPARING_MASK	BIT(1)
+#define CXL_MEMDEV_SPARING_RD_CAP_SOFT_SPARING_MASK	BIT(2)
+
+#define CXL_MEMDEV_SPARING_WR_DEVICE_INITIATED_MASK	BIT(0)
+
+#define CXL_MEMDEV_SPARING_QUERY_RESOURCE_FLAG	BIT(0)
+#define CXL_MEMDEV_SET_HARD_SPARING_FLAG	BIT(1)
+#define CXL_MEMDEV_SPARING_SUB_CHANNEL_VALID_FLAG	BIT(2)
+#define CXL_MEMDEV_SPARING_NIB_MASK_VALID_FLAG	BIT(3)
+
+/*
+ * See CXL spec rev 3.1 @8.2.9.7.2.3 Table 8-119 Memory Sparing Feature
+ * Readable Attributes.
+ */
+struct cxl_memdev_sparing_rd_attrs {
+	struct cxl_memdev_repair_rd_attrs_hdr hdr;
+	u8 rsvd;
+	__le16 restriction_flags;
+}  __packed;
+
+/*
+ * See CXL spec rev 3.1 @8.2.9.7.1.4 Table 8-105 Memory Sparing Input Payload.
+ */
+struct cxl_memdev_sparing_in_payload {
+	u8 flags;
+	u8 channel;
+	u8 rank;
+	u8 nibble_mask[3];
+	u8 bank_group;
+	u8 bank;
+	u8 row[3];
+	__le16 column;
+	u8 sub_channel;
+}  __packed;
+
+static int cxl_mem_sparing_get_attrs(struct cxl_mem_sparing_context *cxl_sparing_ctx,
+				     struct cxl_memdev_sparing_params *params)
+{
+	size_t rd_data_size = sizeof(struct cxl_memdev_sparing_rd_attrs);
+	struct cxl_memdev *cxlmd = cxl_sparing_ctx->cxlmd;
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
+	u16 restriction_flags;
+	size_t data_size;
+	u16 return_code;
+	struct cxl_memdev_sparing_rd_attrs *rd_attrs __free(kfree) =
+				kzalloc(rd_data_size, GFP_KERNEL);
+	if (!rd_attrs)
+		return -ENOMEM;
+
+	data_size = cxl_get_feature(cxl_mbox, &cxl_sparing_ctx->repair_uuid,
+				    CXL_GET_FEAT_SEL_CURRENT_VALUE,
+				    rd_attrs, rd_data_size, 0, &return_code);
+	if (!data_size)
+		return -EIO;
+
+	params->op_class = rd_attrs->hdr.op_class;
+	params->op_subclass = rd_attrs->hdr.op_subclass;
+	restriction_flags = le16_to_cpu(rd_attrs->restriction_flags);
+	params->cap_safe_when_in_use = FIELD_GET(CXL_MEMDEV_SPARING_RD_CAP_SAFE_IN_USE_MASK,
+						 restriction_flags) ^ 1;
+	params->cap_hard_sparing = FIELD_GET(CXL_MEMDEV_SPARING_RD_CAP_HARD_SPARING_MASK,
+					     restriction_flags);
+	params->cap_soft_sparing = FIELD_GET(CXL_MEMDEV_SPARING_RD_CAP_SOFT_SPARING_MASK,
+					     restriction_flags);
+
+	return 0;
+}
+
+static struct cxl_event_dram *
+cxl_mem_get_rec_dram(struct cxl_memdev *cxlmd, struct cxl_mem_sparing_context *ctx)
+{
+	struct cxl_mem_repair_attrbs attrbs = { 0 };
+
+	attrbs.dpa = ctx->dpa;
+	attrbs.channel = ctx->channel;
+	attrbs.rank = ctx->rank;
+	attrbs.nibble_mask = ctx->nibble_mask;
+	switch (ctx->repair_type) {
+	case EDAC_CACHELINE_SPARING:
+		attrbs.repair_type = CXL_CACHELINE_SPARING;
+		attrbs.bank_group = ctx->bank_group;
+		attrbs.bank = ctx->bank;
+		attrbs.row = ctx->row;
+		attrbs.column = ctx->column;
+		attrbs.sub_channel = ctx->sub_channel;
+		break;
+	case EDAC_ROW_SPARING:
+		attrbs.repair_type = CXL_ROW_SPARING;
+		attrbs.bank_group = ctx->bank_group;
+		attrbs.bank = ctx->bank;
+		attrbs.row = ctx->row;
+		break;
+	case EDAC_BANK_SPARING:
+		attrbs.repair_type = CXL_BANK_SPARING;
+		attrbs.bank_group = ctx->bank_group;
+		attrbs.bank = ctx->bank;
+		break;
+	case EDAC_RANK_SPARING:
+		attrbs.repair_type = CXL_BANK_SPARING;
+		break;
+	default:
+		return NULL;
+	}
+
+	/*
+	 * Check memory to repair is from the current boot
+	 */
+	return cxl_find_rec_dram(cxlmd, &attrbs);
+}
+
+static int cxl_mem_do_sparing_op(struct device *dev,
+				 struct cxl_mem_sparing_context *cxl_sparing_ctx,
+				 struct cxl_memdev_sparing_params *rd_params)
+{
+	struct cxl_memdev *cxlmd = cxl_sparing_ctx->cxlmd;
+	struct cxl_memdev_sparing_in_payload sparing_pi;
+	struct cxl_event_dram *rec = NULL;
+	u16 validity_flags = 0;
+
+	if (!rd_params->cap_safe_when_in_use) {
+		/*
+		 * Memory to repair must be offline
+		 */
+		if (cxl_are_decoders_committed(cxlmd))
+			return -EBUSY;
+		/*
+		 * offline, so good for repair
+		 */
+	} else {
+		/*
+		 * If offline all good, otherwise check for match with record
+		 */
+		if (cxl_are_decoders_committed(cxlmd)) {
+			rec = cxl_mem_get_rec_dram(cxlmd, cxl_sparing_ctx);
+			if (!rec)
+				return -EINVAL;
+			/*
+			 * Record matched, so even though online good for repair
+			 */
+			validity_flags = get_unaligned_le16(rec->media_hdr.validity_flags);
+			if (!validity_flags)
+				return -EINVAL;
+		}
+	}
+
+	memset(&sparing_pi, 0, sizeof(sparing_pi));
+	sparing_pi.flags = FIELD_PREP(CXL_MEMDEV_SPARING_QUERY_RESOURCE_FLAG, 0);
+	if (cxl_sparing_ctx->persist_mode)
+		sparing_pi.flags |=
+			FIELD_PREP(CXL_MEMDEV_SET_HARD_SPARING_FLAG, 1);
+
+	switch (cxl_sparing_ctx->repair_type) {
+	case EDAC_CACHELINE_SPARING:
+		sparing_pi.column = cpu_to_le16(cxl_sparing_ctx->column);
+		/*
+		 * Sub-channel is an optional attribute.
+		 */
+		if (!rec || (validity_flags & CXL_DER_VALID_SUB_CHANNEL)) {
+			sparing_pi.flags |=
+				FIELD_PREP(CXL_MEMDEV_SPARING_SUB_CHANNEL_VALID_FLAG, 1);
+			sparing_pi.sub_channel = cxl_sparing_ctx->sub_channel;
+		}
+		fallthrough;
+	case EDAC_ROW_SPARING:
+		put_unaligned_le24(cxl_sparing_ctx->row, sparing_pi.row);
+		fallthrough;
+	case EDAC_BANK_SPARING:
+		sparing_pi.bank_group = cxl_sparing_ctx->bank_group;
+		sparing_pi.bank = cxl_sparing_ctx->bank;
+		fallthrough;
+	case EDAC_RANK_SPARING:
+		sparing_pi.rank = cxl_sparing_ctx->rank;
+		fallthrough;
+	default:
+		sparing_pi.channel = cxl_sparing_ctx->channel;
+		if ((rec && (validity_flags & CXL_DER_VALID_NIBBLE)) ||
+		    (!rec && (!cxl_sparing_ctx->nibble_mask ||
+			     (cxl_sparing_ctx->nibble_mask & 0xFFFFFF)))) {
+			sparing_pi.flags |=
+				FIELD_PREP(CXL_MEMDEV_SPARING_NIB_MASK_VALID_FLAG, 1);
+			put_unaligned_le24(cxl_sparing_ctx->nibble_mask,
+					   sparing_pi.nibble_mask);
+		}
+		break;
+	}
+
+	return cxl_do_maintenance(&cxlmd->cxlds->cxl_mbox, rd_params->op_class,
+				  rd_params->op_subclass, &sparing_pi, sizeof(sparing_pi));
+}
+
+static int cxl_mem_sparing_set_attrs(struct device *dev,
+				     struct cxl_mem_sparing_context *ctx)
+{
+	struct cxl_memdev_sparing_params rd_params;
+	int ret;
+
+	ret = cxl_mem_sparing_get_attrs(ctx, &rd_params);
+	if (ret)
+		return ret;
+
+	ret = cxl_hold_region_and_dpa();
+	if (ret)
+		return ret;
+	ret = cxl_mem_do_sparing_op(dev, ctx, &rd_params);
+	cxl_release_region_and_dpa();
+
+	return ret;
+}
+
+static int cxl_mem_sparing_get_repair_type(struct device *dev, void *drv_data,
+					   const char **repair_type)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+
+	switch (ctx->repair_type) {
+	case EDAC_CACHELINE_SPARING:
+	case EDAC_ROW_SPARING:
+	case EDAC_BANK_SPARING:
+	case EDAC_RANK_SPARING:
+		*repair_type = edac_repair_type[ctx->repair_type];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+#define CXL_SPARING_GET_ATTR(attrib, data_type)					\
+static int cxl_mem_sparing_get_##attrib(struct device *dev, void *drv_data,	\
+					data_type *val)				\
+{										\
+	struct cxl_mem_sparing_context *ctx = drv_data;				\
+										\
+	*val = ctx->attrib;							\
+										\
+	return 0;								\
+}
+CXL_SPARING_GET_ATTR(persist_mode, bool)
+CXL_SPARING_GET_ATTR(dpa, u64)
+CXL_SPARING_GET_ATTR(nibble_mask, u32)
+CXL_SPARING_GET_ATTR(bank_group, u32)
+CXL_SPARING_GET_ATTR(bank, u32)
+CXL_SPARING_GET_ATTR(rank, u32)
+CXL_SPARING_GET_ATTR(row, u32)
+CXL_SPARING_GET_ATTR(column, u32)
+CXL_SPARING_GET_ATTR(channel, u32)
+CXL_SPARING_GET_ATTR(sub_channel, u32)
+
+#define CXL_SPARING_SET_ATTR(attrib, data_type)					\
+static int cxl_mem_sparing_set_##attrib(struct device *dev, void *drv_data,	\
+					data_type val)				\
+{										\
+	struct cxl_mem_sparing_context *ctx = drv_data;				\
+										\
+	ctx->attrib = val;							\
+										\
+	return 0;								\
+}
+CXL_SPARING_SET_ATTR(nibble_mask, u32)
+CXL_SPARING_SET_ATTR(bank_group, u32)
+CXL_SPARING_SET_ATTR(bank, u32)
+CXL_SPARING_SET_ATTR(rank, u32)
+CXL_SPARING_SET_ATTR(row, u32)
+CXL_SPARING_SET_ATTR(column, u32)
+CXL_SPARING_SET_ATTR(channel, u32)
+CXL_SPARING_SET_ATTR(sub_channel, u32)
+
+static int cxl_mem_sparing_set_persist_mode(struct device *dev, void *drv_data,
+					    bool persist_mode)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+	struct cxl_memdev_sparing_params params;
+	int ret;
+
+	ret = cxl_mem_sparing_get_attrs(ctx, &params);
+	if (ret)
+		return ret;
+
+	if ((persist_mode && params.cap_hard_sparing) ||
+	    (!persist_mode && params.cap_soft_sparing))
+		ctx->persist_mode = persist_mode;
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int cxl_get_mem_sparing_safe_when_in_use(struct device *dev, void *drv_data,
+						bool *safe)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+	struct cxl_memdev_sparing_params params;
+	int ret;
+
+	ret = cxl_mem_sparing_get_attrs(ctx, &params);
+	if (ret)
+		return ret;
+
+	*safe = params.cap_safe_when_in_use;
+
+	return 0;
+}
+
+static int cxl_mem_sparing_get_min_dpa(struct device *dev, void *drv_data,
+				       u64 *min_dpa)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+	struct cxl_memdev *cxlmd = ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	*min_dpa = cxlds->dpa_res.start;
+
+	return 0;
+}
+
+static int cxl_mem_sparing_get_max_dpa(struct device *dev, void *drv_data,
+				       u64 *max_dpa)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+	struct cxl_memdev *cxlmd = ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	*max_dpa = cxlds->dpa_res.end;
+
+	return 0;
+}
+
+static int cxl_mem_sparing_set_dpa(struct device *dev, void *drv_data, u64 dpa)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+	struct cxl_memdev *cxlmd = ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end)
+		return -EINVAL;
+
+	ctx->dpa = dpa;
+
+	return 0;
+}
+
+static int cxl_do_mem_sparing(struct device *dev, void *drv_data, u32 val)
+{
+	struct cxl_mem_sparing_context *ctx = drv_data;
+
+	if (val != EDAC_DO_MEM_REPAIR)
+		return -EINVAL;
+
+	return cxl_mem_sparing_set_attrs(dev, ctx);
+}
+
+#define RANK_OPS \
+	.get_repair_type = cxl_mem_sparing_get_repair_type, \
+	.get_persist_mode = cxl_mem_sparing_get_persist_mode, \
+	.set_persist_mode = cxl_mem_sparing_set_persist_mode, \
+	.get_repair_safe_when_in_use = cxl_get_mem_sparing_safe_when_in_use, \
+	.get_min_dpa = cxl_mem_sparing_get_min_dpa, \
+	.get_max_dpa = cxl_mem_sparing_get_max_dpa, \
+	.get_dpa = cxl_mem_sparing_get_dpa, \
+	.set_dpa = cxl_mem_sparing_set_dpa, \
+	.get_nibble_mask = cxl_mem_sparing_get_nibble_mask, \
+	.set_nibble_mask = cxl_mem_sparing_set_nibble_mask, \
+	.get_rank = cxl_mem_sparing_get_rank, \
+	.set_rank = cxl_mem_sparing_set_rank, \
+	.get_channel = cxl_mem_sparing_get_channel, \
+	.set_channel = cxl_mem_sparing_set_channel, \
+	.do_repair = cxl_do_mem_sparing
+
+#define BANK_OPS \
+	RANK_OPS, \
+	.get_bank_group = cxl_mem_sparing_get_bank_group, \
+	.set_bank_group = cxl_mem_sparing_set_bank_group, \
+	.get_bank = cxl_mem_sparing_get_bank, \
+	.set_bank = cxl_mem_sparing_set_bank
+
+#define ROW_OPS \
+	BANK_OPS, \
+	.get_row = cxl_mem_sparing_get_row, \
+	.set_row = cxl_mem_sparing_set_row
+
+#define CACHELINE_OPS \
+	ROW_OPS, \
+	.get_column = cxl_mem_sparing_get_column, \
+	.set_column = cxl_mem_sparing_set_column, \
+	.get_sub_channel = cxl_mem_sparing_get_sub_channel, \
+	.set_sub_channel = cxl_mem_sparing_set_sub_channel
+
+static const struct edac_mem_repair_ops cxl_rank_sparing_ops = {
+	RANK_OPS,
+};
+
+static const struct edac_mem_repair_ops cxl_bank_sparing_ops = {
+	BANK_OPS,
+};
+
+static const struct edac_mem_repair_ops cxl_row_sparing_ops = {
+	ROW_OPS,
+};
+
+static const struct edac_mem_repair_ops cxl_cacheline_sparing_ops = {
+	CACHELINE_OPS,
+};
+
+struct cxl_mem_sparing_desc {
+	const uuid_t repair_uuid;
+	enum edac_mem_repair_type repair_type;
+	enum cxl_mem_sparing_granularity granularity;
+	const struct edac_mem_repair_ops *repair_ops;
+};
+
+static const struct cxl_mem_sparing_desc mem_sparing_desc[] = {
+	{
+		.repair_uuid = CXL_FEAT_CACHELINE_SPARING_UUID,
+		.repair_type = EDAC_CACHELINE_SPARING,
+		.granularity = CXL_MEM_SPARING_CACHELINE,
+		.repair_ops = &cxl_cacheline_sparing_ops,
+	},
+	{
+		.repair_uuid = CXL_FEAT_ROW_SPARING_UUID,
+		.repair_type = EDAC_ROW_SPARING,
+		.granularity = CXL_MEM_SPARING_ROW,
+		.repair_ops = &cxl_row_sparing_ops,
+	},
+	{
+		.repair_uuid = CXL_FEAT_BANK_SPARING_UUID,
+		.repair_type = EDAC_BANK_SPARING,
+		.granularity = CXL_MEM_SPARING_BANK,
+		.repair_ops = &cxl_bank_sparing_ops,
+	},
+	{
+		.repair_uuid = CXL_FEAT_RANK_SPARING_UUID,
+		.repair_type = EDAC_RANK_SPARING,
+		.granularity = CXL_MEM_SPARING_RANK,
+		.repair_ops = &cxl_rank_sparing_ops,
+	},
+};
+
+static int cxl_memdev_sparing_init(struct cxl_memdev *cxlmd,
+				   struct edac_dev_feature *ras_feature,
+				   const struct cxl_mem_sparing_desc *desc,
+				   u8 repair_inst)
+{
+	struct cxl_mem_sparing_context *cxl_sparing_ctx;
+	struct cxl_memdev_sparing_params rd_params;
+	struct cxl_feat_entry *feat_entry;
+	int ret;
+
+	feat_entry = cxl_get_feature_entry(cxlmd, &desc->repair_uuid);
+	if (IS_ERR(feat_entry))
+		return -EOPNOTSUPP;
+
+	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
+		return -EOPNOTSUPP;
+
+	cxl_sparing_ctx = devm_kzalloc(&cxlmd->dev, sizeof(*cxl_sparing_ctx),
+				       GFP_KERNEL);
+	if (!cxl_sparing_ctx)
+		return -ENOMEM;
+
+	*cxl_sparing_ctx = (struct cxl_mem_sparing_context) {
+		.get_feat_size = le16_to_cpu(feat_entry->get_feat_size),
+		.set_feat_size = le16_to_cpu(feat_entry->set_feat_size),
+		.get_version = feat_entry->get_feat_ver,
+		.set_version = feat_entry->set_feat_ver,
+		.effects = le16_to_cpu(feat_entry->effects),
+		.cxlmd = cxlmd,
+		.repair_type = desc->repair_type,
+		.granularity = desc->granularity,
+		.instance = repair_inst++,
+	};
+	uuid_copy(&cxl_sparing_ctx->repair_uuid, &desc->repair_uuid);
+
+	/*
+	 * Read CXL device's sparing capabilities.
+	 */
+	ret = cxl_mem_sparing_get_attrs(cxl_sparing_ctx, &rd_params);
+	if (ret)
+		return ret;
+
+	/*
+	 * Set default value for persist_mode.
+	 */
+	if ((rd_params.cap_soft_sparing && rd_params.cap_hard_sparing) ||
+	    rd_params.cap_soft_sparing)
+		cxl_sparing_ctx->persist_mode = 0;
+	else if (rd_params.cap_hard_sparing)
+		cxl_sparing_ctx->persist_mode = 1;
+	else
+		return -EOPNOTSUPP;
+
+	ras_feature->ft_type = RAS_FEAT_MEM_REPAIR;
+	ras_feature->instance = cxl_sparing_ctx->instance;
+	ras_feature->mem_repair_ops = desc->repair_ops;
+	ras_feature->ctx = cxl_sparing_ctx;
+
+	return 0;
+}
+
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 {
 	struct edac_dev_feature ras_features[CXL_DEV_NUM_RAS_FEATURES];
@@ -1111,7 +1652,7 @@ int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 	int num_ras_features = 0;
 	u8 scrub_inst = 0;
 	u8 repair_inst = 0;
-	int rc;
+	int rc, i;
 
 	rc = cxl_memdev_scrub_init(cxlmd, &ras_features[num_ras_features],
 				   scrub_inst);
@@ -1134,6 +1675,18 @@ int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 		return rc;
 
 	if (rc != -EOPNOTSUPP) {
+		repair_inst++;
+		num_ras_features++;
+	}
+
+	for (i = 0; i < CXL_MEM_SPARING_MAX; i++) {
+		rc = cxl_memdev_sparing_init(cxlmd, &ras_features[num_ras_features],
+					     &mem_sparing_desc[i], repair_inst);
+		if (rc == -EOPNOTSUPP)
+			continue;
+		if (rc < 0)
+			return rc;
+
 		repair_inst++;
 		num_ras_features++;
 	}

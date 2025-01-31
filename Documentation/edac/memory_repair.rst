@@ -150,3 +150,60 @@ Note: Repair command returns error if unsupported/resources are not
 available for the repair operation.
 
 # echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair
+
+2. CXL memory sparing
+
+2.1. Read device supported capabilities for the cacheline sparing.
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair_type
+
+cacheline-sparing
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/persist_mode
+
+0
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair_safe_when_in_use
+
+1
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/min_dpa
+
+0x0
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair1/max_dpa
+
+0xfffffff
+
+Sparing that is safe to use with ongoing accesses to the memory
+
+and applies to 4GiB of DPA space.
+
+2.2. Set attributes for cacheline sparing operation for a DPA=0x700000,
+     where device reported the attributes in CXL DRAM error event record.
+
+# echo 0x700000 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/dpa
+
+# echo 2 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank_group
+
+# echo 4 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/bank
+
+# echo 7 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/channel
+
+# echo 5 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/sub_channel
+
+# echo 9 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/rank
+
+# echo 0x240a > /sys/bus/edac/devices/cxl_mem0/mem_repair1/row
+
+# echo 11 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/column
+
+# echo 0x0FF > /sys/bus/edac/devices/cxl_mem0/mem_repair1/nibble_mask
+
+2.3. Start cacheline sparing operation
+
+Note: Repair command returns error if unsupported, resources are not
+available for the sparing operation or if memory to repair is online
+and attributes are reported from the previous boot etc.
+
+# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair1/repair
