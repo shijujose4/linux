@@ -104,3 +104,49 @@ sysfs
 
 Sysfs files are documented in
 `Documentation/ABI/testing/sysfs-edac-memory-repair`.
+
+Examples
+--------
+
+The memory repair usage takes the form shown in this example:
+
+1. CXL memory device Soft Post Package Repair (Soft PPR)
+
+1.1. Read device supported capabilities for the Soft PPR.
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/persist_mode
+
+0
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair_type
+
+ppr
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair_safe_when_in_use
+
+1
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/min_dpa
+
+0x0
+
+# cat /sys/bus/edac/devices/cxl_mem0/mem_repair0/max_dpa
+
+0xfffffff
+
+ Soft PPR that is safe to use with ongoing accesses to the memory
+
+ and applies to 4GiB of DPA space.
+
+1.2. Set attributes for a soft PPR for a DPA=0x300000
+
+# echo 0x8a2d > /sys/bus/edac/devices/cxl_mem0/mem_repair0/nibble_mask
+
+# echo 0x300000 >  /sys/bus/edac/devices/cxl_mem0/mem_repair0/dpa
+
+1.3. Start soft PPR operation for the DPA=0x300000
+
+Note: Repair command returns error if unsupported/resources are not
+available for the repair operation.
+
+# echo 1 > /sys/bus/edac/devices/cxl_mem0/mem_repair0/repair
