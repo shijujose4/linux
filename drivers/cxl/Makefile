@@ -18,4 +18,5 @@ cxl_port-y := port.o
 cxl_acpi-y := acpi.o
 cxl_pmem-y := pmem.o security.o
 cxl_mem-y := mem.o features.o
+cxl_mem-$(CONFIG_CXL_FWCTL) += fwctl.o
 cxl_pci-y := pci.o

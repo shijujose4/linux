@@ -102,6 +102,21 @@ config CXL_MEM
 
 	  If unsure say 'm'.
 
+config CXL_FWCTL
+	bool "CXL: Firmware Control support"
+	depends on CXL_MEM
+	select FWCTL
+	help
+	  Enable support for firmware control of CXL devices. This allows
+	  a FWCTL char device to be created in order to issue ioctls from
+	  user space to exercise the CXL Features commands supported by
+	  a CXL mailbox. There are some Features defined in the CXL spec
+	  such as memory sparing. However a lot of those features are
+	  exclusive to the kernel. Most likely the Features manipulated
+	  by CXL_FWCTL will be vendor defined Features.
+
+	  If unsure say 'n'.
+
 config CXL_PORT
 	default CXL_BUS
 	tristate

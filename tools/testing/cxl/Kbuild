@@ -47,6 +47,7 @@ cxl_port-y += cxl_port_test.o
 obj-m += cxl_mem.o
 
 cxl_mem-y := $(CXL_SRC)/mem.o $(CXL_SRC)/features.o
+cxl_mem-$(CONFIG_CXL_FWCTL) += $(CXL_SRC)/fwctl.o
 cxl_mem-y += config_check.o
 cxl_mem-y += cxl_mem_test.o
 

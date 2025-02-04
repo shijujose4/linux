@@ -4,6 +4,7 @@
 #define __CXL_FEATURES_H__
 
 #include <linux/uuid.h>
+#include <linux/fwctl.h>
 
 /* Feature UUIDs used by the kernel */
 #define CXL_FEAT_PATROL_SCRUB_UUID						\
@@ -57,6 +58,7 @@ enum cxl_features_capability {
 
 /**
  * struct cxl_features_state - The Features state for the device
+ * @fwctl: FWCTL device
  * @cxlmd: Pointer to cxl mem device
  * @cap: Feature commands capability
  * @num_features: total Features supported by the device
@@ -64,6 +66,7 @@ enum cxl_features_capability {
  * @entries: Feature detail entries fetched from the device
  */
 struct cxl_features_state {
+	struct fwctl_device fwctl;
 	struct cxl_memdev *cxlmd;
 	enum cxl_features_capability cap;
 	int num_features;

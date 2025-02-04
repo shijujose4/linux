@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2024-2025 Intel Corporation. All rights reserved. */
+#include <linux/pci.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <cxl/mailbox.h>
 #include <cxl/features.h>
 #include "cxl.h"
@@ -173,7 +175,7 @@ static void cxlfs_free(void *_cxlfs)
 }
 DEFINE_FREE(free_cxlfs, struct cxl_features_state *, if (_T) cxlfs_free(_T))
 
-static struct cxl_features_state *devm_cxlfs_allocate(struct cxl_memdev *cxlmd)
+struct cxl_features_state *_devm_cxlfs_allocate(struct cxl_memdev *cxlmd)
 {
 	int rc;
 
@@ -191,7 +193,7 @@ static struct cxl_features_state *devm_cxlfs_allocate(struct cxl_memdev *cxlmd)
 	return no_free_ptr(cxlfs);
 }
 
-static void devm_cxlfs_free(struct cxl_memdev *cxlmd)
+void _devm_cxlfs_free(struct cxl_memdev *cxlmd)
 {
 	kfree(cxlmd->cxlfs);
 	/* Set in devm_cxl_add_features(), make sure it's cleared */
@@ -231,3 +233,5 @@ int devm_cxl_add_features(struct cxl_memdev *cxlmd)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_features, "CXL");
+
+MODULE_IMPORT_NS("CXL");
