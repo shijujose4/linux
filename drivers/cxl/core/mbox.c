@@ -92,6 +92,15 @@ int cxl_get_feature_command_id(u16 opcode)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_get_feature_command_id, "CXL");
 
+u16 cxl_get_feature_command_opcode(int feature_id)
+{
+	if (feature_id >= ARRAY_SIZE(cxl_feature_commands))
+		return 0xffff;
+
+	return cxl_feature_commands[feature_id];
+}
+EXPORT_SYMBOL_NS_GPL(cxl_get_feature_command_opcode, "CXL");
+
 /*
  * Commands that RAW doesn't permit. The rationale for each:
  *

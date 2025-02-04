@@ -913,6 +913,7 @@ void cxl_coordinates_combine(struct access_coordinate *out,
 bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port);
 
 int cxl_get_feature_command_id(u16 opcode);
+u16 cxl_get_feature_command_opcode(int feature_id);
 
 /*
  * Unit test builds overrides this to __weak, find the 'strong' version

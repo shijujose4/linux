@@ -42,14 +42,6 @@
 
 struct cxl_mailbox;
 
-/* Index IDs for CXL mailbox Feature commands */
-enum feature_cmds {
-	CXL_FEATURE_ID_GET_SUPPORTED_FEATURES = 0,
-	CXL_FEATURE_ID_GET_FEATURE,
-	CXL_FEATURE_ID_SET_FEATURE,
-	CXL_FEATURE_ID_MAX
-};
-
 /* Feature commands capability supported by a device */
 enum cxl_features_capability {
 	CXL_FEATURES_NONE = 0,
