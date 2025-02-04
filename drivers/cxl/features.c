@@ -46,6 +46,7 @@ static int get_supported_features(struct cxl_memdev *cxlmd,
 	struct cxl_mbox_get_sup_feats_in mbox_in;
 	struct cxl_feat_entry *entry;
 	struct cxl_mbox_cmd mbox_cmd;
+	int user_feats = 0;
 	int count;
 
 	if (cxlfs->cap < CXL_FEATURES_RO)
@@ -125,6 +126,8 @@ static int get_supported_features(struct cxl_memdev *cxlmd,
 			return -ENXIO;
 
 		memcpy(entry, mbox_out->ents, retrieved);
+		if (!is_cxl_feature_exclusive(entry))
+			user_feats++;
 		entry++;
 		/*
 		 * If the number of output entries is less than expected, add the
@@ -135,6 +138,7 @@ static int get_supported_features(struct cxl_memdev *cxlmd,
 	} while (remain_feats);
 
 	cxlfs->num_features = count;
+	cxlfs->num_user_features = user_feats;
 	cxlfs->entries = no_free_ptr(entries);
 	return devm_add_action_or_reset(&cxlmd->dev, cxl_free_feature_entries,
 					cxlfs->entries);
