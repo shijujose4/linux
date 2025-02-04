@@ -6,6 +6,8 @@
 #include "cxlmem.h"
 #include "features.h"
 
+#define to_cxl_features_state(fwctl) container_of(fwctl, struct cxl_features_state, fwctl)
+
 static int cxlctl_open_uctx(struct fwctl_uctx *uctx)
 {
 	return 0;
@@ -17,8 +19,20 @@ static void cxlctl_close_uctx(struct fwctl_uctx *uctx)
 
 static void *cxlctl_info(struct fwctl_uctx *uctx, size_t *length)
 {
-	/* Place holder */
-	return ERR_PTR(-EOPNOTSUPP);
+	struct fwctl_device *fwctl = uctx->fwctl;
+	struct cxl_features_state *cxlfs = to_cxl_features_state(fwctl);
+	struct fwctl_info_cxl *info;
+
+	if (!cxlfs->num_user_features)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
+
+	*length = sizeof(*info);
+
+	return info;
 }
 
 static void *cxlctl_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
