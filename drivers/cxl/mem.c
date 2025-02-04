@@ -7,6 +7,7 @@
 
 #include "cxlmem.h"
 #include "cxlpci.h"
+#include "features.h"
 
 /**
  * DOC: cxl mem
@@ -179,6 +180,10 @@ static int cxl_mem_probe(struct device *dev)
 		if (rc)
 			return rc;
 	}
+
+	rc = devm_cxl_add_features(cxlmd);
+	if (rc)
+		dev_dbg(dev, "No CXL Features enumerated.\n");
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,

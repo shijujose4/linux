@@ -17,5 +17,5 @@ obj-$(CONFIG_CXL_PCI) += cxl_pci.o
 cxl_port-y := port.o
 cxl_acpi-y := acpi.o
 cxl_pmem-y := pmem.o security.o
-cxl_mem-y := mem.o
+cxl_mem-y := mem.o features.o
 cxl_pci-y := pci.o

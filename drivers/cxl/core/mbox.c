@@ -69,6 +69,29 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_TIMESTAMP, 0, 0x8, 0),
 };
 
+static u16 cxl_feature_commands[] = {
+	CXL_MBOX_OP_GET_SUPPORTED_FEATURES,
+	CXL_MBOX_OP_GET_FEATURE,
+	CXL_MBOX_OP_SET_FEATURE,
+};
+
+/**
+ * cxl_get_feature_command_id() - Get the index id for a feature command
+ * @opcode: The device opcode for the feature command
+ *
+ * Return the index id on success or -errno on failure
+ */
+int cxl_get_feature_command_id(u16 opcode)
+{
+	for (int i = 0; i < ARRAY_SIZE(cxl_feature_commands); i++) {
+		if (cxl_feature_commands[i] == opcode)
+			return i;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_get_feature_command_id, "CXL");
+
 /*
  * Commands that RAW doesn't permit. The rationale for each:
  *
@@ -734,6 +757,13 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 		if (cmd) {
 			set_bit(cmd->info.id, cxl_mbox->enabled_cmds);
 			enabled++;
+		} else {
+			int fid = cxl_get_feature_command_id(opcode);
+
+			if (fid >= 0) {
+				set_bit(fid, cxl_mbox->feature_cmds);
+				enabled++;
+			}
 		}
 
 		if (cxl_is_poison_command(opcode)) {
