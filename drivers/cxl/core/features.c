@@ -20,6 +20,17 @@ static const uuid_t cxl_exclusive_feats[] = {
 	CXL_FEAT_RANK_SPARING_UUID,
 };
 
+bool is_cxl_feature_exclusive_by_uuid(uuid_t *uuid)
+{
+	for (int i = 0; i < ARRAY_SIZE(cxl_exclusive_feats); i++) {
+		if (uuid_equal(uuid, &cxl_exclusive_feats[i]))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_feature_exclusive_by_uuid, "CXL");
+
 /**
  * is_cxl_feature_exclusive() - Check if a CXL feature is exclusive to kernel
  * @entry: cxl feature entry
@@ -28,12 +39,7 @@ static const uuid_t cxl_exclusive_feats[] = {
  */
 bool is_cxl_feature_exclusive(struct cxl_feat_entry *entry)
 {
-	for (int i = 0; i < ARRAY_SIZE(cxl_exclusive_feats); i++) {
-		if (uuid_equal(&entry->uuid, &cxl_exclusive_feats[i]))
-			return true;
-	}
-
-	return false;
+	return is_cxl_feature_exclusive_by_uuid(&entry->uuid);
 }
 EXPORT_SYMBOL_NS_GPL(is_cxl_feature_exclusive, "CXL");
 
