@@ -17,4 +17,4 @@ cxl_core-y += cdat.o
 cxl_core-$(CONFIG_TRACING) += trace.o
 cxl_core-$(CONFIG_CXL_REGION) += region.o
 cxl_core-$(CONFIG_CXL_FEATURES) += features.o
-cxl_core-$(CONFIG_CXL_RAS_FEATURES) += memfeatures.o
+cxl_core-$(CONFIG_CXL_RAS_FEATURES) += memfeatures.o ras.o
