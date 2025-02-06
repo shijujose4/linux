@@ -1044,6 +1044,9 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_save_state(pdev);
 
+	xa_init(&cxlmd->rec_gen_media);
+	xa_init(&cxlmd->rec_dram);
+
 	return rc;
 }
 

@@ -34,6 +34,41 @@
 	(FIELD_GET(CXLMDEV_RESET_NEEDED_MASK, status) !=                       \
 	 CXLMDEV_RESET_NEEDED_NOT)
 
+enum cxl_mem_repair_type {
+	CXL_PPR,
+	CXL_CACHELINE_SPARING,
+	CXL_ROW_SPARING,
+	CXL_BANK_SPARING,
+	CXL_RANK_SPARING,
+	CXL_REPAIR_MAX,
+};
+
+/**
+ * struct cxl_mem_repair_attrbs - CXL memory repair attributes
+ * @dpa: DPA of memory to repair
+ * @nibble_mask: nibble mask, identifies one or more nibbles on the memory bus
+ * @row: row of memory to repair
+ * @column: column of memory to repair
+ * @channel: channel of memory to repair
+ * @sub_channel: sub channel of memory to repair
+ * @rank: rank of memory to repair
+ * @bank_group: bank group of memory to repair
+ * @bank: bank of memory to repair
+ * @repair_type: repair type. For eg. PPR, memory sparing etc.
+ */
+struct cxl_mem_repair_attrbs {
+	u64 dpa;
+	u32 nibble_mask;
+	u32 row;
+	u16 column;
+	u8 channel;
+	u8 sub_channel;
+	u8 rank;
+	u8 bank_group;
+	u8 bank;
+	enum cxl_mem_repair_type repair_type;
+};
+
 /**
  * struct cxl_memdev - CXL bus object representing a Type-3 Memory Device
  * @dev: driver core device object
@@ -46,6 +81,8 @@
  * @endpoint: connection to the CXL port topology for this memory device
  * @id: id number of this memdev instance.
  * @depth: endpoint port depth
+ * @rec_gen_media: xarray to store CXL general media records
+ * @rec_dram: xarray to store CXL DRAM records
  */
 struct cxl_memdev {
 	struct device dev;
@@ -58,6 +95,8 @@ struct cxl_memdev {
 	struct cxl_port *endpoint;
 	int id;
 	int depth;
+	struct xarray rec_gen_media;
+	struct xarray rec_dram;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
@@ -819,10 +858,26 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa);
 #if IS_ENABLED(CONFIG_CXL_RAS_FEATURES)
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd);
 int devm_cxl_region_edac_register(struct cxl_region *cxlr);
+struct cxl_event_gen_media *
+cxl_find_rec_gen_media(struct cxl_memdev *cxlmd, struct cxl_mem_repair_attrbs *attrbs);
+struct cxl_event_dram *cxl_find_rec_dram(struct cxl_memdev *cxlmd,
+					 struct cxl_mem_repair_attrbs *attrbs);
+int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt);
+int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt);
 #else
 static inline int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 { return 0; }
 static inline int devm_cxl_region_edac_register(struct cxl_region *cxlr)
+{ return 0; }
+static inline struct cxl_event_gen_media *
+cxl_find_rec_gen_media(struct cxl_memdev *cxlmd, struct cxl_mem_repair_attrbs *attrbs)
+{ return 0; }
+static inline struct cxl_event_dram *cxl_find_rec_dram(struct cxl_memdev *cxlmd,
+						       struct cxl_mem_repair_attrbs *attrbs)
+{ return 0; }
+static inline int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt)
+{ return 0; }
+static inline int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt)
 { return 0; }
 #endif
 

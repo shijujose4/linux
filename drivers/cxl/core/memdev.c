@@ -25,8 +25,17 @@ static DEFINE_IDA(cxl_memdev_ida);
 static void cxl_memdev_release(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_event_gen_media *rec_gen_media;
+	struct cxl_event_dram *rec_dram;
+	unsigned long index;
 
 	ida_free(&cxl_memdev_ida, cxlmd->id);
+	xa_for_each(&cxlmd->rec_dram, index, rec_dram)
+		kfree(rec_dram);
+	xa_destroy(&cxlmd->rec_dram);
+	xa_for_each(&cxlmd->rec_gen_media, index, rec_gen_media)
+		kfree(rec_gen_media);
+	xa_destroy(&cxlmd->rec_gen_media);
 	kfree(cxlmd);
 }
 
