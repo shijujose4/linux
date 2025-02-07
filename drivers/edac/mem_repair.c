@@ -22,6 +22,13 @@ enum edac_mem_repair_attributes {
 	MEM_REPAIR_MIN_DPA,
 	MEM_REPAIR_MAX_DPA,
 	MEM_REPAIR_NIBBLE_MASK,
+	MEM_REPAIR_BANK_GROUP,
+	MEM_REPAIR_BANK,
+	MEM_REPAIR_RANK,
+	MEM_REPAIR_ROW,
+	MEM_REPAIR_COLUMN,
+	MEM_REPAIR_CHANNEL,
+	MEM_REPAIR_SUB_CHANNEL,
 	MEM_DO_REPAIR,
 	MEM_REPAIR_MAX_ATTRS
 };
@@ -70,6 +77,13 @@ EDAC_MEM_REPAIR_ATTR_SHOW(dpa, get_dpa, u64, "0x%llx\n")
 EDAC_MEM_REPAIR_ATTR_SHOW(min_dpa, get_min_dpa, u64, "0x%llx\n")
 EDAC_MEM_REPAIR_ATTR_SHOW(max_dpa, get_max_dpa, u64, "0x%llx\n")
 EDAC_MEM_REPAIR_ATTR_SHOW(nibble_mask, get_nibble_mask, u32, "0x%x\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(bank_group, get_bank_group, u32, "%u\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(bank, get_bank, u32, "%u\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(rank, get_rank, u32, "%u\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(row, get_row, u32, "0x%x\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(column, get_column, u32, "%u\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(channel, get_channel, u32, "%u\n")
+EDAC_MEM_REPAIR_ATTR_SHOW(sub_channel, get_sub_channel, u32, "%u\n")
 
 #define EDAC_MEM_REPAIR_ATTR_STORE(attrib, cb, type, conv_func)			\
 static ssize_t attrib##_store(struct device *ras_feat_dev,			\
@@ -99,6 +113,13 @@ EDAC_MEM_REPAIR_ATTR_STORE(persist_mode, set_persist_mode, unsigned long, kstrto
 EDAC_MEM_REPAIR_ATTR_STORE(hpa, set_hpa, u64, kstrtou64)
 EDAC_MEM_REPAIR_ATTR_STORE(dpa, set_dpa, u64, kstrtou64)
 EDAC_MEM_REPAIR_ATTR_STORE(nibble_mask, set_nibble_mask, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(bank_group, set_bank_group, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(bank, set_bank, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(rank, set_rank, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(row, set_row, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(column, set_column, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(channel, set_channel, unsigned long, kstrtoul)
+EDAC_MEM_REPAIR_ATTR_STORE(sub_channel, set_sub_channel, unsigned long, kstrtoul)
 
 #define EDAC_MEM_REPAIR_DO_OP(attrib, cb)						\
 static ssize_t attrib##_store(struct device *ras_feat_dev,				\
@@ -189,6 +210,62 @@ static umode_t mem_repair_attr_visible(struct kobject *kobj, struct attribute *a
 				return 0444;
 		}
 		break;
+	case MEM_REPAIR_BANK_GROUP:
+		if (ops->get_bank_group) {
+			if (ops->set_bank_group)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_BANK:
+		if (ops->get_bank) {
+			if (ops->set_bank)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_RANK:
+		if (ops->get_rank) {
+			if (ops->set_rank)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_ROW:
+		if (ops->get_row) {
+			if (ops->set_row)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_COLUMN:
+		if (ops->get_column) {
+			if (ops->set_column)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_CHANNEL:
+		if (ops->get_channel) {
+			if (ops->set_channel)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MEM_REPAIR_SUB_CHANNEL:
+		if (ops->get_sub_channel) {
+			if (ops->set_sub_channel)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
 	case MEM_DO_REPAIR:
 		if (ops->do_repair)
 			return a->mode;
@@ -235,6 +312,14 @@ static int mem_repair_create_desc(struct device *dev,
 		[MEM_REPAIR_MAX_DPA] = EDAC_MEM_REPAIR_ATTR_RO(max_dpa, instance),
 		[MEM_REPAIR_NIBBLE_MASK] =
 				EDAC_MEM_REPAIR_ATTR_RW(nibble_mask, instance),
+		[MEM_REPAIR_BANK_GROUP] =
+				EDAC_MEM_REPAIR_ATTR_RW(bank_group, instance),
+		[MEM_REPAIR_BANK] = EDAC_MEM_REPAIR_ATTR_RW(bank, instance),
+		[MEM_REPAIR_RANK] = EDAC_MEM_REPAIR_ATTR_RW(rank, instance),
+		[MEM_REPAIR_ROW] = EDAC_MEM_REPAIR_ATTR_RW(row, instance),
+		[MEM_REPAIR_COLUMN] = EDAC_MEM_REPAIR_ATTR_RW(column, instance),
+		[MEM_REPAIR_CHANNEL] = EDAC_MEM_REPAIR_ATTR_RW(channel, instance),
+		[MEM_REPAIR_SUB_CHANNEL] = EDAC_MEM_REPAIR_ATTR_RW(sub_channel, instance),
 		[MEM_DO_REPAIR] = EDAC_MEM_REPAIR_ATTR_WO(repair, instance)
 	};
 
