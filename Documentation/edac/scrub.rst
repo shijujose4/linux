@@ -332,3 +332,62 @@ Readback 'addr', non-zero - demand scrub is in progress, zero - scrub is finishe
 1.2.5. Start 'background scrubbing'.
 
 # echo 1 > /sys/bus/edac/devices/acpi_ras_mem0/scrub0/enable_background
+
+2. CXL memory device patrol scrubber
+
+2.1 Device based scrubbing
+
+2.1.1. Query what is device default/current scrub cycle setting.
+
+# cat /sys/bus/edac/devices/cxl_mem0/scrub0/current_cycle_duration
+
+43200
+
+2.1.2. Query the range of device supported scrub cycle.
+
+# cat /sys/bus/edac/devices/cxl_mem0/scrub0/min_cycle_duration
+
+3600
+
+# cat /sys/bus/edac/devices/cxl_mem0/scrub0/max_cycle_duration
+
+918000
+
+2.1.3. Program scrubbing for a device to repeat every 21600 seconds (quarter of a day).
+
+# echo 21600 > /sys/bus/edac/devices/cxl_mem0/scrub0/current_cycle_duration
+
+# echo 1 > /sys/bus/edac/devices/cxl_mem0/scrub0/enable_background
+
+2.2. Region based scrubbing
+
+CXL memory is exposed to memory management subsystem and ultimately userspace
+via CXL regions.  These can incorporate one or more parts of multiple CXL
+Type 3 devices with traffic interleaved across them. The user may want to
+control the scrub rate via this more abstract region instead of having to
+figure out the constituent devices and program them separately. The scrub
+rate for each device covers the whole device. Thus if multiple regions use
+parts of that device then requests for scrubbing of other regions may result
+in a higher scrub rate than requested for this specific region.
+
+2.2.1 Query what is device default/current scrub cycle setting for a CXL memory region.
+
+# cat /sys/bus/edac/devices/cxl_region0/scrub0/current_cycle_duration
+
+86400
+
+2.2.2 Query the range of device supported scrub cycle for a CXL memory region.
+
+# cat /sys/bus/edac/devices/cxl_region0/scrub0/min_cycle_duration
+
+3600
+
+# cat /sys/bus/edac/devices/cxl_region0/scrub0/max_cycle_duration
+
+918000
+
+2.2.3 Program scrubbing for a region to repeat every 43200 seconds (half a day)
+
+# echo  43200 > /sys/bus/edac/devices/cxl_region0/scrub0/current_cycle_duration
+
+# echo 1 > /sys/bus/edac/devices/cxl_region0/scrub0/enable_background

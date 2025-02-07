@@ -158,4 +158,22 @@ config CXL_REGION_INVALIDATION_TEST
 	  If unsure, or if this kernel is meant for production environments,
 	  say N.
 
+config CXL_RAS_FEATURES
+	bool "CXL: Memory RAS features"
+	depends on CXL_MEM
+	depends on CXL_FEATURES
+	depends on EDAC=y || (CXL_BUS=m && EDAC=m)
+	depends on EDAC_SCRUB
+	help
+	  The CXL memory RAS feature control is optional and allows host to
+	  control the RAS features configurations of CXL Type 3 devices.
+
+	  It registers with the EDAC device subsystem to expose control
+	  attributes of CXL memory device's RAS features to the user.
+	  It provides interface functions to support configuring the CXL
+	  memory device's RAS features.
+	  Say 'y/m' if you have an expert need to change default settings
+	  of a memory RAS feature established by the platform/device (eg.
+	  scrub rates for the patrol scrub feature). otherwise say 'n'.
+
 endif
