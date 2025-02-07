@@ -3443,6 +3443,11 @@ out:
 	case CXL_DECODER_PMEM:
 		return devm_cxl_add_pmem_region(cxlr);
 	case CXL_DECODER_RAM:
+		rc = devm_cxl_region_edac_register(cxlr);
+		if (rc)
+			dev_dbg(&cxlr->dev, "CXL EDAC registration for region_id=%d failed\n",
+				cxlr->id);
+
 		/*
 		 * The region can not be manged by CXL if any portion of
 		 * it is already online as 'System RAM'
