@@ -107,6 +107,11 @@ struct cxl_mbox_set_feat_hdr {
 	__u8 rsvd[9];
 } __attribute__ ((__packed__));
 
+struct cxl_mbox_set_feat_in {
+	struct cxl_mbox_set_feat_hdr hdr;
+	__u8 data[];
+} __attribute__ ((__packed__));
+
 /* Set Feature flags field */
 enum cxl_set_feat_flag_data_transfer {
 	CXL_SET_FEAT_FLAG_FULL_DATA_TRANSFER = 0,
