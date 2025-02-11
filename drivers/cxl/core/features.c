@@ -209,6 +209,26 @@ int devm_cxl_setup_features(struct cxl_dev_state *cxlds)
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_features, "CXL");
 
+struct cxl_feat_entry *cxl_get_feature_entry(struct cxl_dev_state *cxlds,
+					     const uuid_t *feat_uuid)
+{
+	struct cxl_features_state *cxlfs = to_cxlfs(cxlds);
+	struct cxl_feat_entry *feat_entry;
+	int count;
+
+	/*
+	 * Retrieve the feature entry from the supported features list,
+	 * if the feature is supported.
+	 */
+	feat_entry = cxlfs->entries->ent;
+	for (count = 0; count < cxlfs->entries->num_features; count++, feat_entry++) {
+		if (uuid_equal(&feat_entry->uuid, feat_uuid))
+			return feat_entry;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
 size_t cxl_get_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
 		       enum cxl_get_feat_selection selection,
 		       void *feat_out, size_t feat_out_size, u16 offset,
